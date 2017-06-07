@@ -18,7 +18,7 @@ Sparse matrix computation is a key kernel of many applications. This library pro
 
 
 ## Preparation
-To use this library, the first thing you need to do is to modify the Makefile with correct CUDA instllation path. The compute capability is also appropriately set.
+To use this library, the first thing you need to do is to modify the Makefile with correct CUDA installation path. The compute capability is also appropriately set.
 
 
 ## Components
@@ -35,4 +35,4 @@ Sample SpmV program executes Ax=y, where A is sparse matrix, x and y are dense v
 
 
 ## To use with your own program
-Copy 'inc' and 'src' exept 'sample' folder to your codes. To use the library, include files in your code and compile with the program in 'src' with -DFLOAT (for single) or -DDOUBLE (for double) option (default is double precision).
+Copy 'inc' and 'src' except 'sample' folder to your codes. To use the library, include files in your code and compile with the program in 'src' with -DFLOAT (for single) or -DDOUBLE (for double) option (default is double precision).
