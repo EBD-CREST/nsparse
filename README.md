@@ -1,11 +1,6 @@
 nsparse: Fast Sparse Matrix Library for GPU
 ======
 
-## Author
-Yusuke Nagasaka  
-Akira Nukada  
-Satoshi Matsuoka  
-
 ## Versions
 1.0 (June, 2017)  
 
