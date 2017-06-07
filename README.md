@@ -2,12 +2,12 @@ nsparse: Fast Sparse Matrix Library for GPU
 ======
 
 ## Author
-Yusuke Nagasaka
-Akira Nukada
-Satoshi Matsuoka
+Yusuke Nagasaka  
+Akira Nukada  
+Satoshi Matsuoka  
 
 ## Versions
-1.0 (June, 2017)
+1.0 (June, 2017)  
 
 
 ## Introduction
@@ -17,9 +17,9 @@ Sparse matrix computation is a key kernel of many applications. This library pro
 
 
 #Requirement
-- CUDA: >=5.0
-- Compute capability: >=3.5
-- Thrust: should be installed for sort and scan operations
+- CUDA: >=5.0  
+- Compute capability: >=3.5  
+- Thrust: should be installed for sort and scan operations  
 
 
 ## Preparation
@@ -27,15 +27,15 @@ To use this library, the first thing you need to do is to modify the Makefile wi
 
 
 ## Components
-inc --- header files
-src --- 'conversion', 'kernel' and 'nsparse.cu' are library program. Sample codes are located in 'sample' folder.
-bin --- Execution files are generated.
+inc --- header files  
+src --- 'conversion', 'kernel' and 'nsparse.cu' are library program. Sample codes are located in 'sample' folder.  
+bin --- Execution files are generated.  
 
 
 ## Execution
 Sample SpmV program executes Ax=y, where A is sparse matrix, x and y are dense vectors. The sample provides two SpMV program: one is with cuSPARSE library and the other is with AMB format. The command 'make' generates two executable files in 'bin' folder, 'amb_s' for single precision and 'amb_d' for double precision. The matrix data (in matrix market format) is indicated in first argument.
 
-(1) run SpMV code on matrix data with auto-tuning in single precision
+(1) run SpMV code on matrix data with auto-tuning in single precision  
 ./bin/amb_s ../data/test.mtx
 
 
