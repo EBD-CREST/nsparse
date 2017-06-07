@@ -36,5 +36,3 @@ Sample SpmV program executes Ax=y, where A is sparse matrix, x and y are dense v
 
 ## To use with your own program
 Copy 'inc' and 'src' exept 'sample' folder to your codes. To use the library, include files in your code and compile with the program in 'src' with -DFLOAT (for single) or -DDOUBLE (for double) option (default is double precision).
-
-
