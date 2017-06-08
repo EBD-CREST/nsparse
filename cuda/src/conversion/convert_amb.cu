@@ -567,7 +567,7 @@ void evaluate_spmv(sfAMB *mat, real *d_x, real *d_y,
 
     for (coe = 2; coe <= MAX_THREAD_BLOCK; coe *= 2) {
         plan_.thread_block = WARP * coe;
-        plan_.thread_grid = div_round_up(mat->M, plan_.thread_block);
+        plan_.thread_grid = div_round_up(mat->chunk * mat->c_size, plan_.thread_block);
 
         ave_msec = 0;
         for (i = 0; i < TEST_NUM; i++) {
