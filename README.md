@@ -2,7 +2,7 @@ nsparse: Fast Sparse Matrix Library for GPU
 ======
 
 ## Versions
-1.0 (June, 2017)  
+1.1 (June, 2017)  
 
 
 ## Introduction

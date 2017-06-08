@@ -2,7 +2,7 @@ CXX = g++
 NVCC = nvcc
 
 CFLAGS = -O3 -g
-CFLAGS += -L. ${REAL} -lm -fopenmp
+CFLAGS += -L. ${REAL} -lm
 LDFLAGS = ${CFLAGS}
 
 # for Device Code
@@ -37,9 +37,11 @@ cu_csr :
 	make cu_csr_d
 
 cu_csr_s : $(OBJS_CU_CSR:$(OBJ_SUF)=$(OS_SUF))
+	mkdir -p $(BIN)
 	$(NVCC) -o $(BIN)/$@ $(OBJS_CU_CSR:$(OBJ_SUF)=$(OS_SUF)) $(LDFLAGS) $(INCLUDE)
 
 cu_csr_d : $(OBJS_CU_CSR:$(OBJ_SUF)=$(OD_SUF))
+	mkdir -p $(BIN)
 	$(NVCC) -o $(BIN)/$@ $(OBJS_CU_CSR:$(OBJ_SUF)=$(OD_SUF)) $(LDFLAGS) $(INCLUDE)
 
 amb :
@@ -47,9 +49,11 @@ amb :
 	make amb_d
 
 amb_s : $(OBJS_AMB:$(OBJ_SUF)=$(OS_SUF))
+	mkdir -p $(BIN)
 	$(NVCC) -o $(BIN)/$@ $(OBJS_AMB:$(OBJ_SUF)=$(OS_SUF)) $(LDFLAGS) $(INCLUDE)
 
 amb_d : $(OBJS_AMB:$(OBJ_SUF)=$(OD_SUF))
+	mkdir -p $(BIN)
 	$(NVCC) -o $(BIN)/$@ $(OBJS_AMB:$(OBJ_SUF)=$(OD_SUF)) $(LDFLAGS) $(INCLUDE)
 
 $(OBJ)/%$(OS_SUF) : $(SRC)/%.c
