@@ -1,3 +1,5 @@
+#include <cusparse_v2.h>
+
 #ifdef FLOAT
 typedef float real;
 
@@ -20,6 +22,9 @@ typedef double real;
 #define TRI_NUM 101
 #define TEST_NUM 2
 
+/* Number of SpGEMM Execution for Evaluation or Test */
+#define SPGEMM_TRI_NUM 11
+
 /* Define 2 related */
 #define sfFLT_MAX 1000000000
 #define SHORT_MAX 32768
@@ -33,7 +38,7 @@ typedef double real;
 #define MAX_BLOCK_SIZE 20
 
 /* Check the answer */
-/* #define sfDEBUG */
+#define sfDEBUG
 
 
 typedef enum
@@ -101,6 +106,20 @@ typedef struct
     char *matrix_name;
 } sfAMB;
 
+/* Structure for SpGEMM */
+typedef struct {
+    cudaStream_t *stream;
+    int *bin_size;
+    int *bin_offset;
+    int *d_bin_size;
+    int *d_bin_offset;
+    int *d_row_nz;
+    int *d_row_perm;
+    int max_intprod;
+    int max_nz;
+    int *d_max;
+} sfBIN;
+
 /*
  * Initialize
  */
@@ -132,4 +151,22 @@ void csr_ans_check(real *val, int *col, int *rpt, real *rhs_vec, real *csr_ans, 
 void ans_check(real *csr_ans, real *ans_vec, int N);
 void csr_kernel(real *csr_ans, sfCSR *cpu_mat, real *rhs_vec);
 void sf_spmv_amb(real *d_y, sfAMB *mat, real *d_x, sfPlan *plan);
+
+/*
+ * SpGEMM Kernel
+ */
+void get_spgemm_flop(sfCSR *a, sfCSR *b,
+                     int M, long long int *flop);
+void spgemm_kernel_cu_csr(sfCSR *a, sfCSR *b, sfCSR *c,
+                          cusparseHandle_t *cusparseHandle,
+                          cusparseOperation_t *trans_a,
+                          cusparseOperation_t *trans_b,
+                          cusparseMatDescr_t *descr_a,
+                          cusparseMatDescr_t *descr_b);
+void spgemm_cu_csr(sfCSR *a, sfCSR *b, sfCSR *c);
+void check_spgemm_answer(sfCSR c, sfCSR ans);
+void spgemm_kernel_hash(sfCSR *a, sfCSR *b, sfCSR *c);
+
+
+
 

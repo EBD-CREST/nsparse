@@ -11,7 +11,7 @@
 #define LINE_LENGTH_MAX 256
 
 /*Convert file to CSR*/
-void convert_file_csr(char **file_name,
+void convert_file_csr(char *file_name,
                       int **rpt, int **col, real **val,
                       int *M, int *N, int *nz, int *nnz_max)
 {
@@ -31,15 +31,18 @@ void convert_file_csr(char **file_name,
     line = (char *)malloc(sizeof(char) * LINE_LENGTH_MAX);
   
     /* Open File */
-    fp = fopen(*file_name, "r");
+    fp = fopen(file_name, "r");
     if(fp == NULL) {
+        printf("Cannot find file\n");
         exit(1);
+    }
+    printf("Read mtx file: %s\n", file_name);
+    fgets(line, LINE_LENGTH_MAX, fp);
+    if (strstr(line, "general")) {
+        isUnsy = 1;
     }
     do {
         fgets(line, LINE_LENGTH_MAX, fp);
-        if (strstr(line, "general")) {
-            isUnsy = 1;
-        }
     } while(line[0] == '%');
   
     /* Get size info */
@@ -123,16 +126,6 @@ void convert_file_csr(char **file_name,
     *col = col_;
     *val = val_;
 
-    char *tok1 = (char *)malloc(sizeof(char) * LINE_LENGTH_MAX);
-    char *tok2 = (char *)malloc(sizeof(char) * LINE_LENGTH_MAX);
-    tok1 = strtok(*file_name, "/");
-    while(tok1 != NULL) {
-        strcpy(tok2, tok1);
-        tok1 = strtok(NULL, "/");
-    }
-    tok2 = strtok(tok2, ".");
-    *file_name = tok2;
-    free(tok1);
     free(line);
     free(nnz_num);
     free(row_coo);
@@ -144,7 +137,7 @@ void convert_file_csr(char **file_name,
 
 void init_csr_matrix_from_file(sfCSR *mat, char *file_name)
 {
-    convert_file_csr(&file_name,
+    convert_file_csr(file_name,
                      &(mat->rpt), &(mat->col), &(mat->val),
                      &(mat->M), &(mat->N), &(mat->nnz), &(mat->nnz_max));
     mat->matrix_name = file_name;
@@ -211,9 +204,6 @@ void release_cpu_csr(sfCSR mat)
     free(mat.rpt);
     free(mat.col);
     free(mat.val);
-    if (mat.matrix_name != NULL) {
-        free(mat.matrix_name);
-    }
 }
 
 void release_csr(sfCSR mat)
@@ -272,7 +262,7 @@ void ans_check(real *csr_ans, real *ans_vec, int N)
 {
     int i;
     int total_fail = 10;
-    real delta, base;
+    real delta, base, scale;
   
     for (i = 0; i < N; i++) {
     
@@ -285,24 +275,81 @@ void ans_check(real *csr_ans, real *ans_vec, int N)
         if (base < 0) {
             base *= -1;
         }
+        
 #ifdef FLOAT
-        if (delta * 100 * 1000 > base) {
+        scale = 1000;
 #else
-            if (delta * 100 * 1000 * 1000 > base) {
+        scale = 1000 * 1000;
 #endif
-                printf("i=%d, ans=%e, csr=%e, delta=%e\n", i, ans_vec[i], csr_ans[i], delta);
-                total_fail--;
-                if(total_fail == 0)
-                    break;
-            }
-        }
-
-        if (total_fail != 10){
-            printf("Calculation Result is Incorrect\n");
-        }
-        else {
-            printf("Calculation Result is Correct\n");
+        if (delta * 100 * scale > base) {
+            printf("i=%d, ans=%e, csr=%e, delta=%e\n", i, ans_vec[i], csr_ans[i], delta);
+            total_fail--;
+            if(total_fail == 0)
+                break;
         }
     }
+
+    if (total_fail != 10){
+        printf("Calculation Result is Incorrect\n");
+    }
+    else {
+        printf("Calculation Result is Correct\n");
+    }
+}
+
+void check_spgemm_answer(sfCSR c, sfCSR ans)
+{
+    int i;
+    int M, nz;
+
+    M = c.M;
+    if (c.nnz != ans.nnz) {
+        printf("nnz is not correct: %d (correct), %d (incorrect)\n", ans.nnz, c.nnz);
+        return;
+    }
+    nz = c.nnz;
+
+    /* check rpt */
+    for (i = 0; i < M + 1; i++) {
+        if (c.rpt[i] != ans.rpt[i]) {
+            printf("rpt[%d] is not correct: %d (correct),%d (incorrect)\n", i, ans.rpt[i], c.rpt[i]);
+            return;
+        }
+    }
+    /* check col */
+    for (i = 0; i < nz; i++) {
+        if (c.col[i] != ans.col[i]) {
+            printf("col[%d] is not correct: %d (correct), %d (incorrect)\n", i, ans.col[i], c.col[i]);
+            return;
+        }
+    }
+    /* check val */
+    real delta, base, scale;
+    int total_fail = 10;
+#ifdef FLOAT
+    scale = 1000;
+#else
+    scale = 1000 * 1000;
+#endif
+    for (i = 0; i < nz; i++) {
+        delta = ans.val[i] - c.val[i];
+        base = ans.val[i];
+        if (delta < 0) delta *= -1;
+        if (base < 0) base *= -1;
+
+        if (delta * 1000 * scale > base) {
+            printf("val[%d]: ans=%e, c=%e, delta=%e\n", i, ans.val[i], c.val[i], delta);
+            total_fail--;
+            if(total_fail == 0)
+                break;
+        }
+    }
+    if (total_fail != 10){
+        printf("Calculation Result is Incorrect\n");
+    }
+    else {
+        printf("Calculation Result is Correct\n");
+    }
+}
 
 
