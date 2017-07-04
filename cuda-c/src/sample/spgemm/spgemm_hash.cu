@@ -53,22 +53,22 @@ void spgemm_csr(sfCSR *a, sfCSR *b, sfCSR *c)
   
     printf("SpGEMM using CSR format (Hash-based): %s, %f[GFLOPS], %f[ms]\n", a->matrix_name, flops, ave_msec);
 
+    csr_memcpyDtH(c);
+    release_csr(*c);
+    
     /* Check answer */
 #ifdef sfDEBUG
     sfCSR ans;
     spgemm_cu_csr(a, b, &ans);
 
-    csr_memcpyDtH(c);
     printf("(nnz of A): %d =>\n(Num of intermediate products): %ld =>\n(nnz of C): %d\n", a->nnz, flop_count / 2, c->nnz);
     check_spgemm_answer(*c, ans);
 
-    release_cpu_csr(*c);
     release_cpu_csr(ans);
 #endif
   
     release_csr(*a);
     release_csr(*b);
-    release_csr(*c);
     for (i = 0; i < 2; i++) {
         cudaEventDestroy(event[i]);
     }
@@ -88,6 +88,7 @@ int main(int argc, char **argv)
 
     release_cpu_csr(mat_a);
     release_cpu_csr(mat_b);
+    release_cpu_csr(mat_c);
     
     return 0;
 }
