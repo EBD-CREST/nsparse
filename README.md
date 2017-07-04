@@ -9,6 +9,7 @@ nsparse: Fast Sparse Matrix Library for GPU
 Sparse matrix computation is a key kernel of many applications. This library provides first sparse matrix computation kernels including SpMV and SpGEMM. A new sparse matrix format called the Adaptive Multi-level Blocking (AMB) format improves the performance of sparse matrix vector multiplication (SpMV). More information regarding AMB format can be found in (1). A new algorithm for Sparse General Matrix-Matrix Multiplication (SpGEMM) improves the FLOPS performance with requiring small amount of GPU's device memory. More information regarding this SpGEMM algorithm can be found in (2).
 
 (1) Yusuke Nagasaka, Akira Nukada, Satoshi Matsuoka, "Adaptive Multi-level Blocking Optimization for Sparse Matrix Vector Multiplication on GPU", International Conference on Computational Science (ICCS 2016), June 2016
+
 (2) Yusuke Nagasaka, Akira Nukada, Satoshi Matsuoka, "High-performance and Memory-saving Sparse General Matrix-Matrix Multiplication for NVIDIA Pascal GPU", International Conference on Parallel Processing (ICPP 2017), August 2017
 
 #Requirement
