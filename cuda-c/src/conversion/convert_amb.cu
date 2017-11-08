@@ -842,9 +842,9 @@ void sf_csr2amb(sfAMB *mat,
     int max_div_size, seg_pattern;
     size_t *base_size;
     int seg_it;
-  
+    
     float min_msec;
-
+    
     real *d_y;
     cudaEvent_t event[2];
     for (i = 0; i < 2; i++) {
