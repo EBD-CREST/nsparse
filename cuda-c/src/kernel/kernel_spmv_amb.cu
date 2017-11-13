@@ -40,6 +40,7 @@ __global__ void kernel_spmv_amb_atomic(real *ans,
   
     int start = cs[c_index] + (threadIdx.x & (WARP - 1));
     int colstart = (cs[c_index] / block_size) + (threadIdx.x & (WARP - 1));
+
     int length = cl[c_index];
     int width = length & SCL_BIT;
     int c_offset = (length >> SCL_BORDER) * seg_size;
