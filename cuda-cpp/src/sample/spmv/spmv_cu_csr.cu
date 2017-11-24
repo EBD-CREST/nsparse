@@ -22,7 +22,7 @@ void spmv_cu_csr(CSR<idType, valType> &mat, const valType *x, valType *y)
     valType *d_x, *d_y;
 
     cudaEvent_t event[2];
-    float exe_msec, min_msec, ave_msec, flops;
+    float exe_msec, ave_msec, flops;
 
     const valType alpha = 1.0;
     const valType beta = 0.0;
@@ -47,7 +47,6 @@ void spmv_cu_csr(CSR<idType, valType> &mat, const valType *x, valType *y)
     cusparseSetMatIndexBase(descr,CUSPARSE_INDEX_BASE_ZERO);
   
     /* Execution of SpMV on Device */
-    min_msec = FLT_MAX;
     ave_msec = 0;
     for (i = 0; i < TRI_NUM; i++) {
         cudaEventRecord(event[0], 0);
@@ -72,13 +71,10 @@ void spmv_cu_csr(CSR<idType, valType> &mat, const valType *x, valType *y)
         }
     }
     ave_msec /= TRI_NUM - 1;
-    if (min_msec > ave_msec) {
-        min_msec = ave_msec;
-    }
   
     checkCudaErrors(cudaMemcpy(y, d_y, sizeof(valType) * mat.nrow, cudaMemcpyDeviceToHost));
 
-    flops = (float)(mat.nnz) * 2 / 1000 / 1000 / min_msec;
+    flops = (float)(mat.nnz) * 2 / 1000 / 1000 / ave_msec;
     printf("SpMV using CSR format (cuSPARSE): %f[GFLOPS], %f[ms]\n", flops, ave_msec);
 
     /* Release memory object*/
