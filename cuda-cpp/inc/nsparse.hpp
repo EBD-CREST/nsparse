@@ -14,6 +14,7 @@
 /* Number of SpMV Execution for Evaluation or Test */
 #define TRI_NUM 101
 #define TEST_NUM 2
+#define SpGEMM_TRI_NUM 11
 
 /* Define 2 related */
 #define sfFLT_MAX 1000000000

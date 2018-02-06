@@ -31,6 +31,65 @@ public:
         }
         devise_malloc = false;
     }
+    bool operator==(CSR mat)
+    {
+        bool f = false;
+        if (nrow != mat.nrow) {
+            cout << "Number of row is not correct: " << nrow << ", " << mat.nrow << endl;
+            return f;
+        }
+        if (ncolumn != mat.ncolumn) {
+            cout << "Number of column is not correct" << ncolumn << ", " << mat.ncolumn << endl;
+            return f;
+        }
+        if (nnz != mat.nnz) {
+            cout << "Number of nz is not correct" << nnz << ", " << mat.nnz << endl;
+            return f;
+        }
+        if (rpt == NULL || mat.rpt == NULL || colids == NULL || mat.colids == NULL || values == NULL || mat.values == NULL) {
+            cout << "NULL Pointer" << endl;
+            return f;
+        }
+        for (idType i = 0; i < nrow + 1; ++i) {
+            if (rpt[i] != mat.rpt[i]) {
+                cout << "rpt[" << i << "] is not correct" << endl;
+                return f;
+            }
+        }
+        for (idType i = 0; i < nnz; ++i) {
+            if (colids[i] != mat.colids[i]) {
+                cout << "colids[" << i << "] is not correct" << endl;
+                return f;
+            }
+        }
+        idType total_fail = 10;
+        valType delta, base, scale;
+        for (idType i = 0; i < nnz; ++i) {
+            delta = values[i] - mat.values[i];
+            base = values[i];
+            if (delta < 0) {
+                delta *= -1;
+            }
+            if (base < 0) {
+                base *= -1;
+            }
+            scale = 1000;
+            if (sizeof(valType) == sizeof(double)) {
+                scale *= 1000;
+            }
+            if (delta * scale * 100 > base) {
+                cout << i << ": " << values[i] << ", " << mat.values[i] << endl;
+                total_fail--;
+            }
+            if (total_fail == 0) {
+                cout << "values[" << i << "] is not correct" << endl;
+                return f;
+            }
+        }
+        f = true;
+        return f;
+    }
+
     void init_data_from_mtx(string file_path);
     void memcpyHtD()
     {
@@ -52,9 +111,9 @@ public:
         colids = new idType[nnz];
         values = new valType[nnz];
         cout << "Matrix data is copied to Host" << endl;
-        cudaMemcpy(d_rpt, rpt, sizeof(idType) * (nrow + 1), cudaMemcpyDeviceToHost);
-        cudaMemcpy(d_colids, colids, sizeof(idType) * nnz, cudaMemcpyDeviceToHost);
-        cudaMemcpy(d_values, values, sizeof(valType) * nnz, cudaMemcpyDeviceToHost);
+        cudaMemcpy(rpt, d_rpt, sizeof(idType) * (nrow + 1), cudaMemcpyDeviceToHost);
+        cudaMemcpy(colids, d_colids, sizeof(idType) * nnz, cudaMemcpyDeviceToHost);
+        cudaMemcpy(values, d_values, sizeof(valType) * nnz, cudaMemcpyDeviceToHost);
     }
 
     void spmv_cpu(valType *x, valType *y);

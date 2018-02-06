@@ -6,7 +6,7 @@ CFLAGS += -L. ${REAL} -lm
 LDFLAGS = ${CFLAGS}
 
 # for Device Code
-CUDA_PATH = /usr/local/cuda-8.0
+CUDA_PATH = /apps/t3/sles12sp2/cuda/8.0.61
 LDFLAGS += -L${CUDA_PATH}/lib64
 LDFLAGS += -arch=sm_60 -lcudart -lcusparse
 INCLUDE = -I./inc
@@ -14,47 +14,38 @@ INCLUDE += -I${CUDA_PATH}/include
 INCLUDE += -I${CUDA_PATH}/samples/common/inc
 
 BIN = ./bin
-SRC = ./src
+SRC = ./sample
 OBJ = ./obj
 INC = ./inc
 
 OBJ_SUF = .o
 OS_SUF = .s.o
 OD_SUF = .d.o
+TS_SUF = _s
+TD_SUF = _d
 
-OBJS_CU_CSR = $(OBJ)/sample/spmv/spmv_cu_csr.o 
-OBJS_AMB = $(OBJ)/sample/spmv/spmv_amb.o 
+SRC_SPMV = $(SRC)/spmv
+SAMPLE_SPMV = $(wildcard $(SRC_SPMV)/*.cu)
+SAMPLE_SPMV_TARGET = $(SAMPLE_SPMV:$(SRC)%=$(BIN)%)
+
+SRC_SPGEMM = $(SRC)/spgemm
+SAMPLE_SPGEMM = $(wildcard $(SRC_SPGEMM)/*.cu)
+SAMPLE_SPGEMM_TARGET = $(SAMPLE_SPGEMM:$(SRC)%=$(BIN)%)
 
 all :
-	make amb
+	make spmv
+	make spgemm
 
-spmv : 
-	make cu_csr
-	make amb
+spmv: $(SAMPLE_SPMV_TARGET:.cu=$(TS_SUF)) $(SAMPLE_SPMV_TARGET:.cu=$(TD_SUF))
+spgemm: $(SAMPLE_SPGEMM_TARGET:.cu=$(TS_SUF)) $(SAMPLE_SPGEMM_TARGET:.cu=$(TD_SUF))
 
-cu_csr :
-	make cu_csr_s
-	make cu_csr_d
+$(BIN)/%$(TS_SUF): $(OBJ)/%$(OS_SUF)
+	mkdir -p $(dir $@)
+	$(NVCC) -o $@ $^ $(LDFLAGS) $(INCLUDE)
 
-cu_csr_s : $(OBJS_CU_CSR:$(OBJ_SUF)=$(OS_SUF))
-	mkdir -p $(BIN)
-	$(NVCC) -o $(BIN)/$@ $(OBJS_CU_CSR:$(OBJ_SUF)=$(OS_SUF)) $(LDFLAGS) $(INCLUDE)
-
-cu_csr_d : $(OBJS_CU_CSR:$(OBJ_SUF)=$(OD_SUF))
-	mkdir -p $(BIN)
-	$(NVCC) -o $(BIN)/$@ $(OBJS_CU_CSR:$(OBJ_SUF)=$(OD_SUF)) $(LDFLAGS) $(INCLUDE)
-
-amb :
-	make amb_s
-	make amb_d
-
-amb_s : $(OBJS_AMB:$(OBJ_SUF)=$(OS_SUF))
-	mkdir -p $(BIN)
-	$(NVCC) -o $(BIN)/$@ $(OBJS_AMB:$(OBJ_SUF)=$(OS_SUF)) $(LDFLAGS) $(INCLUDE)
-
-amb_d : $(OBJS_AMB:$(OBJ_SUF)=$(OD_SUF))
-	mkdir -p $(BIN)
-	$(NVCC) -o $(BIN)/$@ $(OBJS_AMB:$(OBJ_SUF)=$(OD_SUF)) $(LDFLAGS) $(INCLUDE)
+$(BIN)/%$(TD_SUF): $(OBJ)/%$(OD_SUF)
+	mkdir -p $(dir $@)
+	$(NVCC) -o $@ $^ $(LDFLAGS) $(INCLUDE)
 
 $(OBJ)/%$(OS_SUF) : $(SRC)/%.cu
 	mkdir -p $(dir $@)
