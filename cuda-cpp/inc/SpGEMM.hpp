@@ -21,16 +21,14 @@
 #define TS_S_T 512 //Table Size for Symbolic in Thread block per row
 #define TS_N_T 256 //Table Size for Numeric in Thread block per row
 
-#define SHARED_S_P 4096
-#define SHARED_N_P 2048
-#define IMB_SH_SIZE 1024
-#define B_SH_SIZE 512
+#define SHARED_S_P 4096 // Total table sizes required by one thread block in PWARP Symbolic
+#define SHARED_N_P 2048 // Total table sizes required by one thread block in PWARP Numeric
 #define HASH_SCAL 107
 
 template <class idType>
 __global__ void set_flop_per_row(idType *d_arpt, idType *d_acol, const idType* __restrict__ d_brpt, long long int *d_flop_per_row, idType nrow)
 {
-    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    idType i = blockIdx.x * blockDim.x + threadIdx.x;
     if (i >= nrow) {
         return;
     }
@@ -365,7 +363,7 @@ __global__ void hash_symbolic_tb_large(const idType *d_arpt, const idType *d_aco
     __syncthreads();
     if (count >= border || snz[0] >= border) {
         if (threadIdx.x == 0) {
-            int d = atomicAdd(d_fail_count, 1);
+            idType d = atomicAdd(d_fail_count, 1);
             d_fail_perm[d] = rid;
         }
     }
@@ -448,8 +446,8 @@ __global__ void hash_symbolic_gl(const idType *d_arpt, const idType *d_acol,
 template <class idType, class valType>
 void hash_symbolic(CSR<idType, valType> a, CSR<idType, valType> b, CSR<idType, valType> &c, BIN<idType, BIN_NUM> &bin)
 {
-    int i;
-    int GS, BS;
+    idType i;
+    idType GS, BS;
     for (i = BIN_NUM - 1; i >= 0; i--) {
         if (bin.bin_size[i] > 0) {
             switch (i) {
@@ -519,17 +517,16 @@ void hash_symbolic(CSR<idType, valType> a, CSR<idType, valType> b, CSR<idType, v
     cudaThreadSynchronize();
     thrust::exclusive_scan(thrust::device, bin.d_count, bin.d_count + (a.nrow + 1), c.d_rpt, 0);
     cudaMemcpy(&(c.nnz), c.d_rpt + c.nrow, sizeof(idType), cudaMemcpyDeviceToHost);
-    cout << c.nnz << endl;
 }
 
-template <class idType, class valType>
+template <class idType, class valType, bool sort>
 __global__ void hash_numeric_pwarp(const idType *d_arpt, const idType *d_acol, const valType *d_aval, const idType* __restrict__ d_brpt, const idType* __restrict__ d_bcol, const valType* __restrict__ d_bval, idType *d_crpt, idType *d_ccol, valType *d_cval, const idType *d_permutation, idType *d_nz, idType bin_offset, idType bin_size)
 {
     idType i = blockIdx.x * blockDim.x + threadIdx.x;
-    int rid = i / PWARP;
-    int tid = i % PWARP;
-    int local_rid = rid % (blockDim.x / PWARP);
-    int j;
+    idType rid = i / PWARP;
+    idType tid = i % PWARP;
+    idType local_rid = rid % (blockDim.x / PWARP);
+    idType j;
 
     __shared__ idType id_table[SHARED_N_P];
     __shared__ valType value_table[SHARED_N_P];
@@ -595,20 +592,29 @@ __global__ void hash_numeric_pwarp(const idType *d_arpt, const idType *d_acol, c
     }
     
     idType nz = d_nz[rid];
-    // Sorting for shared data
-    idType count, target;
-    for (j = tid; j < nz; j += PWARP) {
-        target = id_table[soffset + j];
-        count = 0;
-        for (k = 0; k < nz; k++) {
-            count += (unsigned int)(id_table[soffset + k] - target) >> 31;
+    if (sort) {
+        // Sorting for shared data
+        idType count, target;
+        for (j = tid; j < nz; j += PWARP) {
+            target = id_table[soffset + j];
+            count = 0;
+            for (k = 0; k < nz; k++) {
+                count += (unsigned int)(id_table[soffset + k] - target) >> 31;
+            }
+            d_ccol[offset + count] = id_table[soffset + j];
+            d_cval[offset + count] = value_table[soffset + j];
         }
-        d_ccol[offset + count] = id_table[soffset + j];
-        d_cval[offset + count] = value_table[soffset + j];
+    }
+    else {
+        // No sorting
+        for (j = tid; j < nz; j += PWARP) {
+            d_ccol[offset + j] = id_table[soffset + j];
+            d_cval[offset + j] = value_table[soffset + j];
+        }
     }
 }
 
-template <class idType, class valType, int SH_ROW>
+template <class idType, class valType, int SH_ROW, bool sort>
 __global__ void hash_numeric_tb(const idType *d_arpt, const idType *d_acolids, const valType *d_avalues, const idType* __restrict__ d_brpt, const idType* __restrict__ d_bcolids, const valType* __restrict__ d_bvalues, idType *d_crpt, idType *d_ccolids, valType *d_cvalues, const idType *d_permutation, idType *d_nz, idType bin_offset, idType bin_size)
 {
     idType rid = blockIdx.x;
@@ -682,20 +688,29 @@ __global__ void hash_numeric_tb(const idType *d_arpt, const idType *d_acolids, c
     }
     __syncthreads();
     idType nz = d_nz[rid];
-    /* Sorting for shared data */
-    idType count, target;
-    for (j = threadIdx.x; j < nz; j += blockDim.x) {
-        target = id_table[j];
-        count = 0;
-        for (k = 0; k < nz; k++) {
-            count += (unsigned int)(id_table[k] - target) >> 31;
+    if (sort) {
+        /* Sorting for shared data */
+        idType count, target;
+        for (j = threadIdx.x; j < nz; j += blockDim.x) {
+            target = id_table[j];
+            count = 0;
+            for (k = 0; k < nz; k++) {
+                count += (unsigned int)(id_table[k] - target) >> 31;
+            }
+            d_ccolids[offset + count] = id_table[j];
+            d_cvalues[offset + count] = value_table[j];
         }
-        d_ccolids[offset + count] = id_table[j];
-        d_cvalues[offset + count] = value_table[j];
+    }
+    else {
+        /* No Sorting */
+        for (j = threadIdx.x; j < nz; j += blockDim.x) {
+            d_ccolids[offset + j] = id_table[j];
+            d_cvalues[offset + j] = value_table[j];
+        }
     }
 }
 
-template <class idType, class valType>
+template <class idType, class valType, bool sort>
 __global__ void hash_numeric_gl(const idType *d_arpt, const idType *d_acolids, const valType *d_avalues, const idType* __restrict__ d_brpt, const idType* __restrict__ d_bcolids, const valType* __restrict__ d_bvalues, idType *d_crpt, idType *d_ccolids, valType *d_cvalues, const idType *d_permutation, idType *d_nz, idType *d_id_table, valType *d_value_table, idType max_row_nz, idType bin_offset, idType M)
 {
     idType rid = blockIdx.x;
@@ -766,58 +781,65 @@ __global__ void hash_numeric_gl(const idType *d_arpt, const idType *d_acolids, c
     }
     __syncthreads();
     idType nz = d_nz[rid];
-  
-    /* Sorting for shared data */
-    idType count, target;
-    for (j = threadIdx.x; j < nz; j += blockDim.x) {
-        target = d_id_table[doffset + j];
-        count = 0;
-        for (k = 0; k < nz; k++) {
-            count += (unsigned int)(d_id_table[doffset + k] - target) >> 31;
+    if (sort) {
+        /* Sorting for shared data */
+        idType count, target;
+        for (j = threadIdx.x; j < nz; j += blockDim.x) {
+            target = d_id_table[doffset + j];
+            count = 0;
+            for (k = 0; k < nz; k++) {
+                count += (unsigned int)(d_id_table[doffset + k] - target) >> 31;
+            }
+            d_ccolids[offset + count] = d_id_table[doffset + j];
+            d_cvalues[offset + count] = d_value_table[doffset + j];
         }
-        d_ccolids[offset + count] = d_id_table[doffset + j];
-        d_cvalues[offset + count] = d_value_table[doffset + j];
     }
-
+    else {
+        /* No sorting */
+        for (j = threadIdx.x; j < nz; j += blockDim.x) {
+            d_ccolids[offset + j] = d_id_table[doffset + j];
+            d_cvalues[offset + j] = d_value_table[doffset + j];
+        }
+    }
 }
 
-template <class idType, class valType>
+template <class idType, class valType, bool sort>
 void hash_numeric(CSR<idType, valType> a, CSR<idType, valType> b, CSR<idType, valType> &c, BIN<idType, BIN_NUM> &bin)
 {
-    int i;
-    int GS, BS;
+    idType i;
+    idType GS, BS;
     for (i = BIN_NUM - 1; i >= 0; i--) {
         if (bin.bin_size[i] > 0) {
             switch (i) {
             case 0:
                 BS = 512;
                 GS = div_round_up(bin.bin_size[i] * PWARP, BS);
-                hash_numeric_pwarp<idType, valType><<<GS, BS, 0, bin.stream[i]>>>(a.d_rpt, a.d_colids, a.d_values, b.d_rpt, b.d_colids, b.d_values, c.d_rpt, c.d_colids, c.d_values, bin.d_permutation, bin.d_count, bin.bin_offset[i], bin.bin_size[i]);
+                hash_numeric_pwarp<idType, valType, sort><<<GS, BS, 0, bin.stream[i]>>>(a.d_rpt, a.d_colids, a.d_values, b.d_rpt, b.d_colids, b.d_values, c.d_rpt, c.d_colids, c.d_values, bin.d_permutation, bin.d_count, bin.bin_offset[i], bin.bin_size[i]);
                 break;
             case 1:
                 BS = 64;
                 GS = bin.bin_size[i];
-                hash_numeric_tb<idType, valType, 256><<<GS, BS, 0, bin.stream[i]>>>(a.d_rpt, a.d_colids, a.d_values, b.d_rpt, b.d_colids, b.d_values, c.d_rpt, c.d_colids, c.d_values, bin.d_permutation, bin.d_count, bin.bin_offset[i], bin.bin_size[i]);
+                hash_numeric_tb<idType, valType, 256, sort><<<GS, BS, 0, bin.stream[i]>>>(a.d_rpt, a.d_colids, a.d_values, b.d_rpt, b.d_colids, b.d_values, c.d_rpt, c.d_colids, c.d_values, bin.d_permutation, bin.d_count, bin.bin_offset[i], bin.bin_size[i]);
                 break;
             case 2:
                 BS = 128;
                 GS = bin.bin_size[i];
-                hash_numeric_tb<idType, valType, 512><<<GS, BS, 0, bin.stream[i]>>>(a.d_rpt, a.d_colids, a.d_values, b.d_rpt, b.d_colids, b.d_values, c.d_rpt, c.d_colids, c.d_values, bin.d_permutation, bin.d_count, bin.bin_offset[i], bin.bin_size[i]);
+                hash_numeric_tb<idType, valType, 512, sort><<<GS, BS, 0, bin.stream[i]>>>(a.d_rpt, a.d_colids, a.d_values, b.d_rpt, b.d_colids, b.d_values, c.d_rpt, c.d_colids, c.d_values, bin.d_permutation, bin.d_count, bin.bin_offset[i], bin.bin_size[i]);
                 break;
             case 3:
                 BS = 256;
                 GS = bin.bin_size[i];
-                hash_numeric_tb<idType, valType, 1024><<<GS, BS, 0, bin.stream[i]>>>(a.d_rpt, a.d_colids, a.d_values, b.d_rpt, b.d_colids, b.d_values, c.d_rpt, c.d_colids, c.d_values, bin.d_permutation, bin.d_count, bin.bin_offset[i], bin.bin_size[i]);
+                hash_numeric_tb<idType, valType, 1024, sort><<<GS, BS, 0, bin.stream[i]>>>(a.d_rpt, a.d_colids, a.d_values, b.d_rpt, b.d_colids, b.d_values, c.d_rpt, c.d_colids, c.d_values, bin.d_permutation, bin.d_count, bin.bin_offset[i], bin.bin_size[i]);
                 break;
             case 4:
                 BS = 512;
                 GS = bin.bin_size[i];
-                hash_numeric_tb<idType, valType, 2048><<<GS, BS, 0, bin.stream[i]>>>(a.d_rpt, a.d_colids, a.d_values, b.d_rpt, b.d_colids, b.d_values, c.d_rpt, c.d_colids, c.d_values, bin.d_permutation, bin.d_count, bin.bin_offset[i], bin.bin_size[i]);
+                hash_numeric_tb<idType, valType, 2048, sort><<<GS, BS, 0, bin.stream[i]>>>(a.d_rpt, a.d_colids, a.d_values, b.d_rpt, b.d_colids, b.d_values, c.d_rpt, c.d_colids, c.d_values, bin.d_permutation, bin.d_count, bin.bin_offset[i], bin.bin_size[i]);
                 break;
             case 5:
                 BS = 1024;
                 GS = bin.bin_size[i];
-                hash_numeric_tb<idType, valType, 4096><<<GS, BS, 0, bin.stream[i]>>>(a.d_rpt, a.d_colids, a.d_values, b.d_rpt, b.d_colids, b.d_values, c.d_rpt, c.d_colids, c.d_values, bin.d_permutation, bin.d_count, bin.bin_offset[i], bin.bin_size[i]);
+                hash_numeric_tb<idType, valType, 4096, sort><<<GS, BS, 0, bin.stream[i]>>>(a.d_rpt, a.d_colids, a.d_values, b.d_rpt, b.d_colids, b.d_values, c.d_rpt, c.d_colids, c.d_values, bin.d_permutation, bin.d_count, bin.bin_offset[i], bin.bin_size[i]);
                 break;
             case 6 :
                 {
@@ -832,7 +854,7 @@ void hash_numeric(CSR<idType, valType> a, CSR<idType, valType> b, CSR<idType, va
                     init_id_table<<<GS, BS, 0, bin.stream[i]>>>(d_id_table, table_size);
                     init_value_table<<<GS, BS, 0, bin.stream[i]>>>(d_value_table, table_size);
                     GS = bin.bin_size[i];
-                    hash_numeric_gl<<<GS, BS, 0, bin.stream[i]>>>(a.d_rpt, a.d_colids, a.d_values, b.d_rpt, b.d_colids, b.d_values, c.d_rpt, c.d_colids, c.d_values, bin.d_permutation, bin.d_count, d_id_table, d_value_table, max_row_nz, bin.bin_offset[i], bin.bin_size[i]);
+                    hash_numeric_gl<idType, valType, sort><<<GS, BS, 0, bin.stream[i]>>>(a.d_rpt, a.d_colids, a.d_values, b.d_rpt, b.d_colids, b.d_values, c.d_rpt, c.d_colids, c.d_values, bin.d_permutation, bin.d_count, d_id_table, d_value_table, max_row_nz, bin.bin_offset[i], bin.bin_size[i]);
                     cudaFree(d_id_table);
                     cudaFree(d_value_table);
                 }
@@ -843,7 +865,7 @@ void hash_numeric(CSR<idType, valType> a, CSR<idType, valType> b, CSR<idType, va
     cudaThreadSynchronize();
 }
 
-template <class idType, class valType>
+template <bool sort, class idType, class valType>
 void SpGEMM_Hash(CSR<idType, valType> a, CSR<idType, valType> b, CSR<idType, valType> &c)
 {
     BIN<idType, BIN_NUM> bin(a.nrow);
@@ -859,10 +881,13 @@ void SpGEMM_Hash(CSR<idType, valType> a, CSR<idType, valType> b, CSR<idType, val
     cudaMalloc((void **)&(c.d_values), sizeof(valType) * (c.nnz));
 
     bin.set_min_bin(a.nrow, TS_N_P, TS_N_T);
-    hash_numeric(a, b, c, bin);
+    hash_numeric<idType, valType, sort>(a, b, c, bin);
 }
 
-
-
+template <class idType, class valType>
+void SpGEMM_Hash(CSR<idType, valType> a, CSR<idType, valType> b, CSR<idType, valType> &c)
+{
+    SpGEMM_Hash<true, idType, valType>(a, b, c);
+}
 #endif
 

@@ -47,7 +47,6 @@ void spgemm_hash(CSR<idType, valType> a, CSR<idType, valType> b, CSR<idType, val
             c.release_csr();
         }
         cudaEventRecord(event[0], 0);
-        // SpGEMM_cuSPARSE(a, b, c);
         SpGEMM_Hash(a, b, c);
         cudaEventRecord(event[1], 0);
         cudaThreadSynchronize();
@@ -70,13 +69,15 @@ void spgemm_hash(CSR<idType, valType> a, CSR<idType, valType> b, CSR<idType, val
     if (c == cusparse_c) {
         cout << "HashSpGEMM is correctly executed" << endl;
     }
+    cout << "Nnz of A: " << a.nnz << endl; 
+    cout << "Number of intermediate products: " << flop_count / 2 << endl; 
+    cout << "Nnz of C: " << c.nnz << endl; 
     cusparse_c.release_cpu_csr();
 #endif
 
     a.release_csr();
     b.release_csr();
     c.release_csr();
-
 
     for (i = 0; i < 2; i++) {
         cudaEventDestroy(event[i]);
@@ -102,7 +103,7 @@ int main(int argc, char *argv[])
     
     a.release_cpu_csr();
     b.release_cpu_csr();
-    // c.release_cpu_csr();
+    c.release_cpu_csr();
   
     return 0;
 

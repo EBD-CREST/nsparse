@@ -134,17 +134,17 @@ public:
 template <class idType, class valType>
 void CSR<idType, valType>::init_data_from_mtx(string file_path)
 {
-    int i, num;
-    int isUnsy;
+    idType i, num;
+    bool isUnsy;
     char *line, *ch;
     FILE *fp;
     idType *col_coo, *row_coo, *nnz_num, *each_row_index;
     valType *val_coo;
-    int LINE_LENGTH_MAX = 256;
+    idType LINE_LENGTH_MAX = 256;
 
     devise_malloc = false;
     
-    isUnsy = 0;
+    isUnsy = false;
     line = new char[LINE_LENGTH_MAX];
   
     /* Open File */
@@ -156,7 +156,7 @@ void CSR<idType, valType>::init_data_from_mtx(string file_path)
 
     fgets(line, LINE_LENGTH_MAX, fp);
     if (strstr(line, "general")) {
-        isUnsy = 1;
+        isUnsy = true;
     }
     do {
         fgets(line, LINE_LENGTH_MAX, fp);
@@ -174,11 +174,11 @@ void CSR<idType, valType>::init_data_from_mtx(string file_path)
     while (fgets(line, LINE_LENGTH_MAX, fp)) {
         ch = line;
         /* Read first word (row id)*/
-        row_coo[num] = (int)(atoi(ch) - 1);
+        row_coo[num] = (idType)(atoi(ch) - 1);
         ch = strchr(ch, ' ');
         ch++;
         /* Read second word (column id)*/
-        col_coo[num] = (int)(atoi(ch) - 1);
+        col_coo[num] = (idType)(atoi(ch) - 1);
         ch = strchr(ch, ' ');
 
         if (ch != NULL) {
@@ -202,7 +202,7 @@ void CSR<idType, valType>::init_data_from_mtx(string file_path)
     }
     for (i = 0; i < num; i++) {
         nnz_num[row_coo[i]]++;
-        if(col_coo[i] != row_coo[i] && isUnsy == 0) {
+        if(col_coo[i] != row_coo[i] && isUnsy == false) {
             nnz_num[col_coo[i]]++;
             nnz++;
         }
@@ -227,7 +227,7 @@ void CSR<idType, valType>::init_data_from_mtx(string file_path)
         colids[rpt[row_coo[i]] + each_row_index[row_coo[i]]] = col_coo[i];
         values[rpt[row_coo[i]] + each_row_index[row_coo[i]]++] = val_coo[i];
     
-        if (col_coo[i] != row_coo[i] && isUnsy==0) {
+        if (col_coo[i] != row_coo[i] && isUnsy == false) {
             colids[rpt[col_coo[i]] + each_row_index[col_coo[i]]] = row_coo[i];
             values[rpt[col_coo[i]] + each_row_index[col_coo[i]]++] = val_coo[i];
         }
