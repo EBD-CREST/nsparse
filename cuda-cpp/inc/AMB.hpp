@@ -975,10 +975,6 @@ __global__ void kernel_spmv_amb_atomic(valType *ans,
                                        idType seg_size,
                                        AddOperation addop, MultOperation mulop, AAddOperation aaddop)
 {
-// #if defined(__CUDA_ARCH__) && (__CUDA_ARCH__ >= 600)
-//     aaaaaaaa;
-// #endif
-
     idType i = blockIdx.x * blockDim.x + threadIdx.x;
   
     if (i >= row_num) {

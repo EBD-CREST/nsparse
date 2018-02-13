@@ -41,7 +41,7 @@ void spmv(CSR<idType, valType> &mat, const valType *x, valType *y, Plan<idType> 
     a_mat.convert_from_csr(mat, plan, d_x);
     // sf_csr2amb(&mat, csr_mat, d_x, plan);
     printf("Format Conversion Cost (CSR=>AMB, %d-%d)\n", a_mat.seg_size, a_mat.block_size);
-    cout << "Format Conversion: CSR => AMB(" << a_mat.seg_size << ", " << a_mat.block_size << ", " << plan.thread_block << ", " << plan.thread_grid << endl;
+    cout << "Format Conversion: CSR => AMB(" << a_mat.seg_size << ", " << a_mat.block_size << ", " << plan.thread_block << ", " << plan.thread_grid << ")" << endl;
 
     /* Execution of SpMV on Device */
     min_msec = FLT_MAX;
@@ -71,6 +71,7 @@ void spmv(CSR<idType, valType> &mat, const valType *x, valType *y, Plan<idType> 
     /* Release memory object*/
     cudaFree(d_x);
     cudaFree(d_y);
+    a_mat.release_amb();
     mat.release_csr();
 
 }
