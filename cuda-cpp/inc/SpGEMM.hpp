@@ -889,5 +889,23 @@ void SpGEMM_Hash(CSR<idType, valType> a, CSR<idType, valType> b, CSR<idType, val
 {
     SpGEMM_Hash<true, idType, valType>(a, b, c);
 }
+
+template <bool sort, class idType, class valType>
+void SpGEMM_Hash_Numeric(CSR<idType, valType> a, CSR<idType, valType> b, CSR<idType, valType> &c)
+{
+    BIN<idType, BIN_NUM> bin(a.nrow);
+
+    bin.set_min_bin(c.d_rpt, a.nrow, TS_N_P, TS_N_T);
+    hash_numeric<idType, valType, sort>(a, b, c, bin);
+}
+
+template <class idType, class valType>
+void SpGEMM_Hash_Numeric(CSR<idType, valType> a, CSR<idType, valType> b, CSR<idType, valType> &c)
+{
+    SpGEMM_Hash_Numeric<true, idType, valType>(a, b, c);
+}
+
+
+
 #endif
 

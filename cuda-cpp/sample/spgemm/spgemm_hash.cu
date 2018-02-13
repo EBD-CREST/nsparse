@@ -61,6 +61,24 @@ void spgemm_hash(CSR<idType, valType> a, CSR<idType, valType> b, CSR<idType, val
     flops = (float)(flop_count) / 1000 / 1000 / ave_msec;
     printf("SpGEMM using CSR format (Hash): %f[GFLOPS], %f[ms]\n", flops, ave_msec);
 
+    /* Numeric Only */
+    ave_msec = 0;
+    for (i = 0; i < SpGEMM_TRI_NUM; i++) {
+        cudaEventRecord(event[0], 0);
+        SpGEMM_Hash_Numeric(a, b, c);
+        cudaEventRecord(event[1], 0);
+        cudaThreadSynchronize();
+        cudaEventElapsedTime(&msec, event[0], event[1]);
+    
+        if (i > 0) {
+            ave_msec += msec;
+        }
+    }
+    ave_msec /= SpGEMM_TRI_NUM - 1;
+
+    flops = (float)(flop_count) / 1000 / 1000 / ave_msec;
+    printf("SpGEMM using CSR format (Hash, only numeric phase): %f[GFLOPS], %f[ms]\n", flops, ave_msec);
+
     c.memcpyDtH();
 
 #ifdef sfDEBUG
@@ -74,6 +92,8 @@ void spgemm_hash(CSR<idType, valType> a, CSR<idType, valType> b, CSR<idType, val
     cout << "Nnz of C: " << c.nnz << endl; 
     cusparse_c.release_cpu_csr();
 #endif
+
+
 
     a.release_csr();
     b.release_csr();

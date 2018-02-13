@@ -6,7 +6,7 @@ CFLAGS += -L. ${REAL} -lm
 LDFLAGS = ${CFLAGS}
 
 # for Device Code
-CUDA_PATH = /apps/t3/sles12sp2/cuda/8.0.61
+CUDA_PATH = /usr/local/cuda-8.0
 LDFLAGS += -L${CUDA_PATH}/lib64
 LDFLAGS += -arch=sm_60 -lcudart -lcusparse
 INCLUDE = -I./inc

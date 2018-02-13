@@ -39,6 +39,7 @@ public:
     
     void set_max_bin(idType *d_arpt, idType *d_acol, idType *d_brpt, idType M, int TS_S_P, int TS_S_T);
     void set_min_bin(idType M, int TS_N_P, int TS_N_T);
+    void set_min_bin(idType *d_rpt, idType M, int TS_N_P, int TS_N_T);
 
     cudaStream_t *stream;
     idType *bin_size;
@@ -199,6 +200,65 @@ void BIN<idType, BIN_NUM>::set_min_bin(idType M, int TS_N_P, int TS_N_T)
   
     BS = 1024;
     GS = div_round_up(M, BS);
+    set_bin<idType, BIN_NUM><<<GS, BS>>>(d_count, d_bin_size,
+                                         d_max,
+                                         M, TS_N_T, TS_N_P);
+  
+    cudaMemcpy(&(max_nz), d_max, sizeof(idType), cudaMemcpyDeviceToHost);
+    if (max_nz > TS_N_P) {
+        cudaMemcpy(bin_size, d_bin_size, sizeof(idType) * BIN_NUM, cudaMemcpyDeviceToHost);
+        cudaMemcpy(d_bin_size, bin_offset, sizeof(idType) * BIN_NUM, cudaMemcpyHostToDevice);
+
+        for (i = 0; i < BIN_NUM - 1; i++) {
+            bin_offset[i + 1] = bin_offset[i] + bin_size[i];
+        }
+        cudaMemcpy(d_bin_offset, bin_offset, sizeof(idType) * BIN_NUM, cudaMemcpyHostToDevice);
+  
+        set_row_perm<idType, BIN_NUM><<<GS, BS>>>(d_bin_size, d_bin_offset, d_count, d_permutation, M, TS_N_T, TS_N_P);
+    }
+
+    else {
+        bin_size[0] = M;
+        for (i = 1; i < BIN_NUM; i++) {
+            bin_size[i] = 0;
+        }
+        bin_offset[0] = 0;
+        for (i = 1; i < BIN_NUM; i++) {
+            bin_offset[i] = M;
+        }
+        BS = 1024;
+        GS = div_round_up(M, BS);
+        init_row_perm<<<GS, BS>>>(d_permutation, M);
+    }
+}
+
+template <class idType>
+__global__ void set_nnz_per_row_from_rpt(idType *d_rpt, idType *d_count, idType nrow)
+{
+    idType i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (i >= nrow) {
+        return;
+    }
+    d_count[i] = d_rpt[i + 1] - d_rpt[i];
+}
+
+template <class idType, int BIN_NUM>
+void BIN<idType, BIN_NUM>::set_min_bin(idType *d_rpt, idType M, int TS_N_P, int TS_N_T)
+{
+    idType i;
+    idType GS, BS;
+  
+    for (i = 0; i < BIN_NUM; i++) {
+        bin_size[i] = 0;
+        bin_offset[i] = 0;
+    }
+  
+    cudaMemcpy(d_bin_size, bin_size, sizeof(idType) * BIN_NUM, cudaMemcpyHostToDevice);
+    cudaMemcpy(d_max, &(max_nz), sizeof(idType), cudaMemcpyHostToDevice);
+  
+    BS = 1024;
+    GS = div_round_up(M, BS);
+    set_nnz_per_row_from_rpt<<<GS, BS>>>(d_rpt, d_count, M);
     set_bin<idType, BIN_NUM><<<GS, BS>>>(d_count, d_bin_size,
                                          d_max,
                                          M, TS_N_T, TS_N_P);
