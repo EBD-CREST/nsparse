@@ -12,7 +12,7 @@ Sparse matrix computation is a key kernel of many applications. This library pro
 
 (2) Yusuke Nagasaka, Akira Nukada, Satoshi Matsuoka, "High-performance and Memory-saving Sparse General Matrix-Matrix Multiplication for NVIDIA Pascal GPU", International Conference on Parallel Processing (ICPP 2017), August 2017
 
-#Requirement
+## Requirement
 - CUDA: >=5.0 && < 9.0 (assume implicit synchronization among WARP)
 - Compute capability: >=3.5
 - Thrust: should be installed for sort and scan operations  
@@ -27,9 +27,9 @@ src --- 'conversion', 'kernel' and 'nsparse.cu' are library program. Sample code
 bin --- Execution files are generated.  
 
 ### C++ version (only SpMV)
-inc --- header files
-src --- Sample codes are located in 'sample' folder.
-bin --- Execution files are generated.
+inc --- header files  
+sample --- sample codes  
+bin --- Execution files are generated.  
 
 ## Execution of SpMV
 Sample SpmV program executes Ax=y, where A is sparse matrix, x and y are dense vectors. The sample provides two SpMV program: one is with cuSPARSE library and the other is with AMB format. The command 'make' generates two executable files in 'bin' folder, 'amb_s' for single precision and 'amb_d' for double precision. The matrix data (in matrix market format) is indicated in first argument.
