@@ -25,6 +25,7 @@ public:
     {
         seg_size = s_size;
         block_size = b_size;
+        isPlan = true;
     }
 
     idType thread_grid;

@@ -33,13 +33,12 @@ void spmv(CSR<idType, valType> &mat, const valType *x, valType *y, Plan<idType> 
     /* Malloc and memcpy HtoD */
     mat.memcpyHtD();
 
-    checkCudaErrors(cudaMalloc((void **)&d_x, sizeof(valType) * (mat.ncolumn + MAX_BLOCK_SIZE)));
-    checkCudaErrors(cudaMalloc((void **)&d_y, sizeof(valType) * (mat.nrow + warp)));
+    checkCudaErrors(cudaMalloc((void **)&d_x, sizeof(valType) * mat.ncolumn));
+    checkCudaErrors(cudaMalloc((void **)&d_y, sizeof(valType) * mat.nrow));
     checkCudaErrors(cudaMemcpy(d_x, x, sizeof(valType) * mat.ncolumn, cudaMemcpyHostToDevice));
 
     /* Converting format from CSR to AMB */
     a_mat.convert_from_csr(mat, plan, d_x);
-    // sf_csr2amb(&mat, csr_mat, d_x, plan);
     printf("Format Conversion Cost (CSR=>AMB, %d-%d)\n", a_mat.seg_size, a_mat.block_size);
     cout << "Format Conversion: CSR => AMB(" << a_mat.seg_size << ", " << a_mat.block_size << ", " << plan.thread_block << ", " << plan.thread_grid << ")" << endl;
 

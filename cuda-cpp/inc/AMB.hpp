@@ -414,7 +414,7 @@ __global__ void set_packed_cl_cs(idType *d_packed_cl, idType *d_packed_cs,
 }
 
 template <class idType>
-__global__ void update_write_permutation(idType *write_permutation, idType *nnz_num, idType total_pad_row_num, idType pad_M)
+__global__ void update_write_permutation(idType *write_permutation, idType *nnz_num, idType total_pad_row_num, idType pad_M, idType M)
 {  
     idType i = blockIdx.x * blockDim.x + threadIdx.x;
 
@@ -423,6 +423,9 @@ __global__ void update_write_permutation(idType *write_permutation, idType *nnz_
     }
 
     write_permutation[i] -= (i / pad_M) * pad_M;
+    if (write_permutation[i] >= M) {
+        write_permutation[i] = M - 1;
+    } 
 }
 
 template <class idType>
@@ -501,7 +504,6 @@ __global__ void set_blocked_cl(compIdType *d_blocked_cl, compIdType *d_blocked_c
 
     if (j == 0) {
         max_width = width;
-        // d_blocked_cl[i / chunk] = ((max_width / block_size) - 1) | ((d_packed_cl[i / chunk] >> SCL_BORDER) << SCL_BORDER);
         d_blocked_cl[i / chunk] = (max_width / block_size) - 1;
         d_blocked_coffset[i / chunk] = (d_packed_cl[i / chunk] >> SCL_BORDER);
     }
@@ -520,7 +522,6 @@ __global__ void init_blocked_cs(idType *d_blocked_cs, const compIdType *d_blocke
         d_blocked_cs[i] = 0;
     }
     else {
-        // d_blocked_cs[i] = ((d_blocked_cl[i - 1] & SCL_BIT) + 1) * chunk * block_size;
         d_blocked_cs[i] = ((d_blocked_cl[i - 1]) + 1) * chunk * block_size;
     }
 }
@@ -600,6 +601,37 @@ __global__ void set_blocked_col_val(compIdType *d_bs_col_ell, valType *d_b_val_e
             d_bs_col_ell[d_blocked_cs[chunk_id] / block_size + tid + k * chunk] = (d_s_col_ell[d_packed_cs[chunk_id] + tid + (d_packed_cl[chunk_id] & SCL_BIT) * chunk] / block_size) * block_size;
             for (h = 0; h < block_size; h++) {
                 d_b_val_ell[d_blocked_cs[chunk_id] + tid + (k * block_size + h) * chunk] = 0;
+            }
+        }
+    }
+}
+
+template <class idType, class compIdType, class valType>
+__global__ void adjust_blocked_col_val(compIdType *d_bs_col_ell, valType *d_b_val_ell,
+                                       compIdType *d_blocked_cl, idType *d_blocked_cs, compIdType *d_coffset,
+                                       idType c_size, int chunk, int block_size, idType N, idType seg_size)
+{
+    idType i = blockIdx.x * blockDim.x + threadIdx.x;
+
+    if (i >= c_size * chunk) {
+        return;
+    }
+
+    idType chunk_id = i / chunk;
+    idType tid = i % chunk;
+    idType width = d_blocked_cl[chunk_id] + 1;
+
+    idType it, k, c, h;
+    for (k = 0; k < width; k++) {
+        c = d_bs_col_ell[d_blocked_cs[chunk_id] / block_size + tid + k * chunk] + (d_coffset[chunk_id] * seg_size);
+        if (c + block_size > N) {
+            d_bs_col_ell[d_blocked_cs[chunk_id] / block_size + tid + k * chunk] = (N - (d_coffset[chunk_id] * seg_size) - block_size);
+            h = block_size - (N - c);
+            for (it = block_size - h - 1; it >= 0; --it) {
+                d_b_val_ell[d_blocked_cs[chunk_id] + tid + (k * block_size + h + it) * chunk] = d_b_val_ell[d_blocked_cs[chunk_id] + tid + (k * block_size + it) * chunk];
+            }
+            for (it = 0; it < h; ++it) {
+                d_b_val_ell[d_blocked_cs[chunk_id] + tid + (k * block_size + it) * chunk] = 0;
             }
         }
     }
@@ -715,10 +747,6 @@ void AMB<idType, compIdType, valType>::convert_amb_at(CSR<idType, valType> csr_m
     checkCudaErrors(cudaMemcpy(check_nnz, d_check_nnz, sizeof(idType) * sigma_block, cudaMemcpyDeviceToHost));
     
     /* Sorting each sigma rows */
-    if (M < SIGMA) {
-        SIGMA = M;
-    }
-    /* Sorting each M rows */
     if (SIGMA > 1) {
         thrust::device_ptr<idType> dev_nnz_num(d_nnz_num);
         thrust::device_ptr<idType> dev_full_write_permutation(d_full_write_permutation);
@@ -783,7 +811,7 @@ void AMB<idType, compIdType, valType>::convert_amb_at(CSR<idType, valType> csr_m
     cudaFree(d_nb_sellcs_col);
     
     /* Updating the write permutation */
-    update_write_permutation<<<div_round_up(total_pad_row_num, BS), BS>>>(d_full_write_permutation, d_nnz_num, total_pad_row_num, pad_M);
+    update_write_permutation<<<div_round_up(total_pad_row_num, BS), BS>>>(d_full_write_permutation, d_nnz_num, total_pad_row_num, pad_M, M);
     checkCudaErrors(cudaMalloc((void **)&d_write_permutation, sizeof(idType) * (c_size * chunk)));
     compress_write_permutation<<<div_round_up(total_pad_row_num, BS), BS>>>(d_write_permutation, d_full_write_permutation, d_gcs, total_pad_row_num, chunk);
 
@@ -797,8 +825,11 @@ void AMB<idType, compIdType, valType>::convert_amb_at(CSR<idType, valType> csr_m
     cudaFree(d_gcs);
 
     /* Step 4 : Blocking */
+    int max_block = min(MAX_BLOCK_SIZE, N);
+    max_block = min(max_block, seg_size);
+    max_block = min(max_block, (N - seg_size * (seg_num - 1)));
     if (plan.isPlan == false) {
-        for (block_size = 1; block_size <= MAX_BLOCK_SIZE; block_size++) {
+        for (block_size = 1; block_size <= max_block; block_size++) {
             if (block_size > 1) {
                 checkCudaErrors(cudaFree(d_cl));
                 checkCudaErrors(cudaFree(d_coffset));
@@ -816,9 +847,8 @@ void AMB<idType, compIdType, valType>::convert_amb_at(CSR<idType, valType> csr_m
             nnz = c_nnz;
             checkCudaErrors(cudaMalloc((void **)&(d_sellcs_col), sizeof(compIdType) * c_nnz / block_size));
             checkCudaErrors(cudaMalloc((void **)&(d_sellcs_val), sizeof(valType) * c_nnz));
-    
-            // set_blocked_col_val<<<div_round_up((c_size * chunk), BS), BS>>>(d_sellcs_col, d_sellcs_val, d_cl, d_cs, d_packed_cl, d_packed_cs, d_nbs_sellcs_col, d_nb_sellcs_val, c_size, chunk, block_size);
             set_blocked_col_val<<<div_round_up((c_size * chunk), BS), BS>>>(d_sellcs_col, d_sellcs_val, d_cl, d_cs, d_packed_cl, d_packed_cs, d_nbs_sellcs_col, d_nb_sellcs_val, c_size, chunk, block_size);
+            adjust_blocked_col_val<<<div_round_up((c_size * chunk), BS), BS>>>(d_sellcs_col, d_sellcs_val, d_cl, d_cs, d_coffset, c_size, chunk, block_size, N, seg_size);
             cudaThreadSynchronize();
     
 #ifdef AT
@@ -861,6 +891,7 @@ void AMB<idType, compIdType, valType>::convert_amb_at(CSR<idType, valType> csr_m
     checkCudaErrors(cudaMalloc((void **)&(d_sellcs_val), sizeof(valType) * c_nnz));
 
     set_blocked_col_val<<<div_round_up((c_size * chunk), BS), BS>>>(d_sellcs_col, d_sellcs_val, d_cl, d_cs, d_packed_cl, d_packed_cs, d_nbs_sellcs_col, d_nb_sellcs_val, c_size, chunk, (block_size));
+    adjust_blocked_col_val<<<div_round_up((c_size * chunk), BS), BS>>>(d_sellcs_col, d_sellcs_val, d_cl, d_cs, d_coffset, c_size, chunk, block_size, N, seg_size);
     
     cudaFree(d_packed_cl);
     cudaFree(d_packed_cs);
