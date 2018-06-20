@@ -11,6 +11,7 @@
 #include <nsparse.hpp>
 #include <CSR.hpp>
 #include <SpGEMM.hpp>
+#include <HashSpGEMM.hpp>
 
 typedef int IT;
 #ifdef FLOAT
@@ -80,6 +81,7 @@ void spgemm_hash(CSR<idType, valType> a, CSR<idType, valType> b, CSR<idType, val
     printf("SpGEMM using CSR format (Hash, only numeric phase): %f[GFLOPS], %f[ms]\n", flops, ave_msec);
 
     c.memcpyDtH();
+    c.release_csr();
 
 #ifdef sfDEBUG
     CSR<IT, VT> cusparse_c;
@@ -93,11 +95,8 @@ void spgemm_hash(CSR<idType, valType> a, CSR<idType, valType> b, CSR<idType, val
     cusparse_c.release_cpu_csr();
 #endif
 
-
-
     a.release_csr();
     b.release_csr();
-    c.release_csr();
 
     for (i = 0; i < 2; i++) {
         cudaEventDestroy(event[i]);

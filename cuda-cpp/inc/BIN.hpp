@@ -5,9 +5,6 @@ template <class idType, int BIN_NUM>
 class BIN
 {
 public:
-    // BIN():max_flop(0), max_nz(0)
-    // {
-    // }
     BIN(idType nrow):max_flop(0), max_nz(0)
     {
         stream = (cudaStream_t *)malloc(sizeof(cudaStream_t) * BIN_NUM);
@@ -262,7 +259,7 @@ void BIN<idType, BIN_NUM>::set_min_bin(idType *d_rpt, idType M, int TS_N_P, int 
     set_bin<idType, BIN_NUM><<<GS, BS>>>(d_count, d_bin_size,
                                          d_max,
                                          M, TS_N_T, TS_N_P);
-  
+    
     cudaMemcpy(&(max_nz), d_max, sizeof(idType), cudaMemcpyDeviceToHost);
     if (max_nz > TS_N_P) {
         cudaMemcpy(bin_size, d_bin_size, sizeof(idType) * BIN_NUM, cudaMemcpyDeviceToHost);

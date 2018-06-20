@@ -1,7 +1,9 @@
-#include <stdio.h>
 /*
  * Inline PTX
  */
+#ifndef NSPARSE_ASM_H
+#define NSPARSE_ASM_H
+
 __device__ __inline__ float ld_gbl_val(const float *val)
 {
     float return_value;
@@ -100,3 +102,5 @@ __device__ __inline__ double AtomicAdd<double>::operator()(double *a, double v)
     return old;
 #endif
 }
+
+#endif
