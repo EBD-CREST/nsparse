@@ -114,7 +114,7 @@ void SpGEMM_cuSPARSE(CSR<idType, valType> a, CSR<idType, valType> b, CSR<idType,
                            cusparseHandle,
                            trans_a, trans_b,
                            descr_a, descr_b, descr_c);
-    cudaThreadSynchronize();
+    cudaDeviceSynchronize();
     
     c.memcpyDtH();
 

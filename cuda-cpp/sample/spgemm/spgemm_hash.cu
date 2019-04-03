@@ -11,7 +11,7 @@
 #include <nsparse.hpp>
 #include <CSR.hpp>
 #include <SpGEMM.hpp>
-#include <HashSpGEMM.hpp>
+#include <HashSpGEMM_volta.hpp>
 
 typedef int IT;
 #ifdef FLOAT
@@ -50,7 +50,7 @@ void spgemm_hash(CSR<idType, valType> a, CSR<idType, valType> b, CSR<idType, val
         cudaEventRecord(event[0], 0);
         SpGEMM_Hash(a, b, c);
         cudaEventRecord(event[1], 0);
-        cudaThreadSynchronize();
+        cudaDeviceSynchronize();
         cudaEventElapsedTime(&msec, event[0], event[1]);
     
         if (i > 0) {
@@ -68,7 +68,7 @@ void spgemm_hash(CSR<idType, valType> a, CSR<idType, valType> b, CSR<idType, val
         cudaEventRecord(event[0], 0);
         SpGEMM_Hash_Numeric(a, b, c);
         cudaEventRecord(event[1], 0);
-        cudaThreadSynchronize();
+        cudaDeviceSynchronize();
         cudaEventElapsedTime(&msec, event[0], event[1]);
     
         if (i > 0) {

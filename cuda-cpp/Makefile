@@ -6,9 +6,9 @@ CFLAGS += -L. ${REAL} -lm
 LDFLAGS = ${CFLAGS}
 
 # for Device Code
-CUDA_PATH = /usr/local/cuda-8.0
+CUDA_PATH = /usr/local/cuda
 LDFLAGS += -L${CUDA_PATH}/lib64
-LDFLAGS += -arch=sm_60 -lcudart -lcusparse
+LDFLAGS += -arch=sm_70 -lcudart -lcusparse
 INCLUDE = -I./inc
 INCLUDE += -I${CUDA_PATH}/include
 INCLUDE += -I${CUDA_PATH}/samples/common/inc

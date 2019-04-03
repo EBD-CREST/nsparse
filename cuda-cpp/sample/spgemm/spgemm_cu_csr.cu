@@ -66,7 +66,7 @@ void spgemm_cu_csr(CSR<idType, valType> a, CSR<idType, valType> b, CSR<idType, v
         cudaEventRecord(event[0], 0);
         SpGEMM_cuSPARSE_kernel(a, b, c, cusparseHandle, trans_a, trans_b, descr_a, descr_b, descr_c);
         cudaEventRecord(event[1], 0);
-        cudaThreadSynchronize();
+        cudaDeviceSynchronize();
         cudaEventElapsedTime(&msec, event[0], event[1]);
     
         if (i > 0) {
