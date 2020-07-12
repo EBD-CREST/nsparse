@@ -10,7 +10,7 @@ template <class idType, class valType>
 class CSR
 {
 public:
-    CSR():nrow(0), ncolumn(0), nnz(0), devise_malloc(false)
+    CSR():nrow(0), ncolumn(0), nnz(0), device_malloc(false)
     {
     }
     ~CSR()
@@ -24,12 +24,12 @@ public:
     }
     void release_csr()
     {
-        if (devise_malloc) {
+        if (device_malloc) {
             cudaFree(d_rpt);
             cudaFree(d_colids);
             cudaFree(d_values);
         }
-        devise_malloc = false;
+        device_malloc = false;
     }
     bool operator==(CSR mat)
     {
@@ -93,17 +93,17 @@ public:
     void init_data_from_mtx(string file_path);
     void memcpyHtD()
     {
-        if (!devise_malloc) {
-            cout << "Allocating memory space for matrix data on devise memory" << endl;
+        if (!device_malloc) {
+            cout << "Allocating memory space for matrix data on device memory" << endl;
             cudaMalloc((void **)&d_rpt, sizeof(idType) * (nrow + 1));
             cudaMalloc((void **)&d_colids, sizeof(idType) * nnz);
             cudaMalloc((void **)&d_values, sizeof(valType) * nnz);
         }
-        cout << "Copying matrix data to GPU devise" << endl;
+        cout << "Copying matrix data to GPU device" << endl;
         cudaMemcpy(d_rpt, rpt, sizeof(idType) * (nrow + 1), cudaMemcpyHostToDevice);
         cudaMemcpy(d_colids, colids, sizeof(idType) * nnz, cudaMemcpyHostToDevice);
         cudaMemcpy(d_values, values, sizeof(valType) * nnz, cudaMemcpyHostToDevice);
-        devise_malloc = true;
+        device_malloc = true;
     }
     void memcpyDtH()
     {
@@ -128,7 +128,7 @@ public:
     idType ncolumn;
     idType nnz;
     bool host_malloc;
-    bool devise_malloc;
+    bool device_malloc;
 };
 
 template <class idType, class valType>
@@ -142,7 +142,7 @@ void CSR<idType, valType>::init_data_from_mtx(string file_path)
     valType *val_coo;
     idType LINE_LENGTH_MAX = 256;
 
-    devise_malloc = false;
+    device_malloc = false;
     
     isUnsy = false;
     line = new char[LINE_LENGTH_MAX];

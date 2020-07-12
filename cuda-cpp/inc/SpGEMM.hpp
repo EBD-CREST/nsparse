@@ -70,7 +70,7 @@ void SpGEMM_cuSPARSE_kernel(CSR<idType, valType> a, CSR<idType, valType> b, CSR<
     cusparseStatus_t status;
     c.nrow = a.nrow;
     c.ncolumn = b.ncolumn;
-    c.devise_malloc = true;
+    c.device_malloc = true;
     cudaMalloc((void **)&(c.d_rpt), sizeof(idType) * (c.nrow + 1));
 
     status = cusparseXcsrgemmNnz(cusparseHandle, trans_a, trans_b, a.nrow, b.ncolumn, a.ncolumn, descr_a, a.nnz, a.d_rpt, a.d_colids, descr_b, b.nnz, b.d_rpt, b.d_colids, descr_c, c.d_rpt, &(c.nnz));

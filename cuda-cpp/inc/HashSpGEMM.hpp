@@ -980,7 +980,7 @@ void SpGEMM_Hash(CSR<idType, valType> a, CSR<idType, valType> b, CSR<idType, val
 
     c.nrow = a.nrow;
     c.ncolumn = b.ncolumn;
-    c.devise_malloc = true;
+    c.device_malloc = true;
     cudaMalloc((void **)&(c.d_rpt), sizeof(idType) * (c.nrow + 1));
     
     bin.set_max_bin(a.d_rpt, a.d_colids, b.d_rpt, a.nrow, TS_S_P, TS_S_T);
